@@ -19,7 +19,7 @@ Setting up and running
 Example
 -------
 
-Example of playing a major seventh chord from Sine Waves:
+Example of playing a C3 major seventh chord made from sine waves:
 
 ```scala
 import server.quickstart.play
