@@ -20,7 +20,7 @@ Example
 
 Example of playing a major seventh chord from Sine Waves:
 
-```
+```scala
 import server.quickstart.play
 import synth.base.dbl2synth
 import synth.simple.Sine
