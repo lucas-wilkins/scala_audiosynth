@@ -10,10 +10,11 @@ Scala Audiosynth
 Setting up and running
 ----------------------
 
-Clone repository
-Download IntelliJ community
-Use IntelliJ's prompts for SDK to install the correct Java and Scala SDKs
-Run examples
+1) Clone repository
+2) Download IntelliJ community
+3) Open repository at base directory in IntelliJ
+4) Use IntelliJ's prompts for SDK to install the correct Java and Scala SDKs
+5) Files in the `examples` directory can be run
 
 Example
 -------
