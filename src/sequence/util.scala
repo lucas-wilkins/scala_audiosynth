@@ -1,0 +1,5 @@
+package sequence
+
+object util {
+
+}

@@ -125,6 +125,34 @@ object simple {
     }
   }
 
+  abstract class TriggeringSquare(val freq: Synth, val phaseFraction: Double = 0) extends Oscillator with Doublable {
+    var value: Double = (2 * phaseFraction.enforcedZeroToOne) - 1
+
+    var lastOutput: Int = 0
+    override def calculate(): Double = {
+
+      value += 2 * dt * freq.outputValue
+      while (value > 1) {
+        value -= 2
+      }
+
+      val output = if (value < 0) 1 else -1 // Start high, go low
+
+      // Rising edge
+      if ((lastOutput <= 0) && (output > 0)) {
+
+        onTrigger()
+      }
+
+      lastOutput = output
+
+      output
+    }
+
+    def onTrigger(): Unit
+
+  }
+
   class PWM(val freq: Synth, val duty: Synth, val phaseFraction: Double = -1) extends Oscillator {
     var value: Double = (2 * phaseFraction.enforcedZeroToOne) - 1
 
