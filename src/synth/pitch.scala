@@ -25,6 +25,27 @@ object pitch {
     override val children: List[Synth] = input :: slewRate :: Nil
   }
 
+  class SimplePortmanteau(input: Synth, slewRate: Double) extends Synth {
+    private var output: Double = 0.0
+
+    override def calculate(): Double = {
+      val target = input.outputValue
+      val delta = dt * slewRate
+
+      if (output < target - delta) {
+        output += delta
+      } else if (output > target + delta) {
+        output -= delta
+      } else {
+        output = target
+      }
+
+      output
+    }
+
+    override val children: List[Synth] = input :: Nil
+  }
+
   class PIDController(input: Synth, p: Synth, i: Synth, d: Synth, initialValue: Double = 0.0) extends Synth {
 
     private var integral: Double = 0.0

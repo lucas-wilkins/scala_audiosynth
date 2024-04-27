@@ -13,7 +13,7 @@ import scala.reflect.io.File
 
 class SamplingThread(
       val sampleRate: Int = 44100,
-      val bufferTime: Double = 0.1,
+      val bufferTime: Double = 0.05,
       val outputFilename: Option[String] = None)
     extends Thread {
 
