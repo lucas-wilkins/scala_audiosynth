@@ -22,6 +22,7 @@ object visual {
   /* Comments are for forward thinking people */
 
   private val fullSequencePeriod = 960
+  private val emptySequence = (1 to fullSequencePeriod).map(_ => 0).toArray
 
   private val mainBackgroundColor = new Color(128,128,128)
 
@@ -138,7 +139,7 @@ object visual {
             }
           }
 
-          slewRate = tempoBPS / holdCount
+          slewRate = 2*tempoBPS / holdCount // Factor of two because we go from 1 to -1
 
 
         }
@@ -252,14 +253,14 @@ object visual {
     val channel7 = new MutableTriggerTrack(clock, tempoBPS)
     val channel8 = new MutableTriggerTrack(clock, tempoBPS)
 
-    val channel1volRaw = new MutableVolumeSynth(clock)
-    val channel2volRaw = new MutableVolumeSynth(clock)
-    val channel3volRaw = new MutableVolumeSynth(clock)
-    val channel4volRaw = new MutableVolumeSynth(clock)
-    val channel5volRaw = new MutableVolumeSynth(clock)
-    val channel6volRaw = new MutableVolumeSynth(clock)
-    val channel7volRaw = new MutableVolumeSynth(clock)
-    val channel8volRaw = new MutableVolumeSynth(clock)
+    private val channel1volRaw = new MutableVolumeSynth(clock)
+    private val channel2volRaw = new MutableVolumeSynth(clock)
+    private val channel3volRaw = new MutableVolumeSynth(clock)
+    private val channel4volRaw = new MutableVolumeSynth(clock)
+    private val channel5volRaw = new MutableVolumeSynth(clock)
+    private val channel6volRaw = new MutableVolumeSynth(clock)
+    private val channel7volRaw = new MutableVolumeSynth(clock)
+    private val channel8volRaw = new MutableVolumeSynth(clock)
 
     val channel1vol = new SimplePortmanteau(channel1volRaw, volumeSlew)
     val channel2vol = new SimplePortmanteau(channel2volRaw, volumeSlew)
@@ -290,6 +291,15 @@ object visual {
       channel7vol,
       channel8vol)
 
+    val rawVolumes = List(
+      channel1volRaw,
+      channel2volRaw,
+      channel3volRaw,
+      channel4volRaw,
+      channel5volRaw,
+      channel6volRaw,
+      channel7volRaw,
+      channel8volRaw)
 
   }
 
@@ -470,9 +480,13 @@ object visual {
     }
   }
 
-  class UIVolume extends BasePanel {
+  class UIVolume(val id: Int, val mainGUI: VisualSequencerInterface) extends BasePanel {
 
-    val slider = new UISlider
+    val slider = new UISlider {
+      override def onChanged(): Unit = {
+        mainGUI.setVolume(id, overallVolume)
+      }
+    }
     val mute = new MuteButton("M") {
       override def onToggle(isMute: Boolean) {
         slider.mute = isMute
@@ -545,15 +559,18 @@ object visual {
 
     def nonMuteVolume_=(volume: Double): Unit = {
       _volume = volume
-
       repaint()
+      onChanged()
     }
 
     def nonMuteVolume: Double = _volume
 
+    def onChanged(): Unit = {}
+
     def mute_=(mute: Boolean) = {
       _mute = mute
       repaint()
+      onChanged()
     }
     def mute = _mute
 
@@ -571,6 +588,7 @@ object visual {
       fraction = if (fraction > 1) 1.0 else fraction
 
       nonMuteVolume = 1-fraction
+
     }
 
     override def mouseEntered(e: MouseEvent): Unit = {}
@@ -788,12 +806,22 @@ object visual {
 
     /** Get the sequence need for the audio side */
     def state: Array[Int] = {
-      buttons
-        .map(_.beatType)
-        .flatMap {
-          case BEAT_ON => beatOnSequence
-          case BEAT_HOLD => beatHoldSequence
-          case _ => beatOffSequence}
+
+      if (muteButton.isSelected) {
+
+        emptySequence
+
+      } else {
+
+        buttons
+          .map(_.beatType)
+          .flatMap {
+            case BEAT_ON => beatOnSequence
+            case BEAT_HOLD => beatHoldSequence
+            case _ => beatOffSequence
+          }
+
+      }
     }
 
     /** Sequence for the fileIO side - set*/
@@ -906,8 +934,8 @@ object visual {
     }
 
   }
-  class OutputChannelControl extends BasePanel {
-    val volumeSlider = new UIVolume()
+  class OutputChannelControl(val id: Int, val mainGUI: VisualSequencerInterface) extends BasePanel {
+    val volumeSlider = new UIVolume(id, mainGUI)
     val channelList = new OutputCheckGrid()
 
 
@@ -924,8 +952,8 @@ object visual {
 
   }
 
-  class VolumesAndOutputs(val mainGUIref: VisualSequencerInterface) extends BasePanel {
-    val volumeControls = (1 to 8).toList.map(_ => new OutputChannelControl())
+  class VolumesAndOutputs(val mainGUI: VisualSequencerInterface) extends BasePanel {
+    val volumeControls = (0 until 8).toList.map(i => new OutputChannelControl(i, mainGUI))
 
     setLayout(new BoxLayout(this, BoxLayout.X_AXIS))
 
@@ -1065,9 +1093,9 @@ object visual {
   }
 
 
-  class LowerControlPanel(val mainGUIref: VisualSequencerInterface) extends BasePanel {
-    val volumesAndOutputs = new VolumesAndOutputs(mainGUIref)
-    val savedSequences = new SavedSequences(mainGUIref)
+  class LowerControlPanel(val mainGUI: VisualSequencerInterface) extends BasePanel {
+    val volumesAndOutputs = new VolumesAndOutputs(mainGUI)
+    val savedSequences = new SavedSequences(mainGUI)
 
     setLayout(new BoxLayout(this, BoxLayout.X_AXIS))
     add(Box.createRigidArea(new Dimension(15, 0)))
@@ -1101,6 +1129,8 @@ object visual {
     val sequencer1 = new SequenceSection(ACTIVE, this)
     val sequencer2 = new SequenceSection(INACTIVE, this)
 
+    val sequencers = sequencer1 :: sequencer2 :: Nil
+
     mainFrame.add(mainPanel)
 
     mainPanel.add(Box.createRigidArea(new Dimension(0, 10)))
@@ -1114,11 +1144,28 @@ object visual {
     mainFrame.pack()
     mainFrame.show()
 
+
+
     // Sound -> Display options
     def setBeat(beat: Int): Unit = {
+      sequencers.foreach(_.setBeat(beat))
 
-      sequencer1.setBeat(beat)
-      sequencer2.setBeat(beat)
+      if (beat == 0) {
+        sequencers.foreach(sequencer => {
+          sequencer.controls.fill.state =
+            sequencer.controls.fill.state match {
+              case WAITING => ACTIVE
+              case ACTIVE => CLEAR
+              case other => other
+          }
+
+          sequencer.controls.stage.state =
+            sequencer.controls.stage.state match {
+              case WAITING => ACTIVE
+              case other => other
+            }
+        })
+      }
     }
 
 
@@ -1128,6 +1175,12 @@ object visual {
       parent.channels.zip(seqs).foreach {
         case (channel, sequence) => channel.fill(sequence)
       }
+
+      sequencers.foreach(otherSequencer => {
+        if (sequencer != otherSequencer) {
+          otherSequencer.controls.fill.state = CLEAR
+        }
+      })
     }
 
     def stage(sequencer: SequenceSection): Unit = {
@@ -1135,6 +1188,12 @@ object visual {
       parent.channels.zip(seqs).foreach {
         case (channel, sequence) => channel.stage(sequence)
       }
+
+      sequencers.foreach(otherSequencer => {
+        if (sequencer != otherSequencer) {
+          otherSequencer.controls.stage.state = CLEAR
+        }
+      })
     }
 
     val emptySequence = (0 until fullSequencePeriod).map(_ => 0).toArray
@@ -1158,6 +1217,10 @@ object visual {
           }}
         })
 
+    }
+
+    def setVolume(id: Int, volume: Double): Unit = {
+       parent.rawVolumes(id).set(volume)
     }
 
   }
